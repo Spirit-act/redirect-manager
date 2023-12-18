@@ -1,0 +1,16 @@
+version: "3.6"
+services:
+  app:
+    build: .
+    container_name: redirect_app
+    environment:
+      LISTEN_PORT: 8090
+      REDIS_HOST: redis:6379
+    ports:
+      - 127.0.0.1:8090:8090
+    cap_drop:
+      - ALL
+
+  redis:
+   image: redis
+   container_name: redirect_redis
