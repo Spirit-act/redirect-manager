@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -22,11 +23,24 @@ func toString(value any) string {
 	return fmt.Sprintf("%v", value)
 }
 
+func getEnv(key string, fallback string) string {
+	val, exists := os.LookupEnv(key)
+
+	if exists {
+		return val
+	}
+
+	return fallback
+}
+
 func getRedis(host_header string) (string, error) {
+	redis_db, _ := strconv.Atoi(getEnv("REDIS_DB", "0"))
+
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "",
-		DB:       0,
+		Addr:     getEnv("REDIS_HOST", "127.0.0.1:6379"),
+		Username: getEnv("REDIS_USERNAME", "default"),
+		Password: getEnv("REDIS_PASSWORD", ""),
+		DB:       redis_db,
 	})
 
 	val, err := rdb.Get(ctx, host_header).Result()
@@ -46,13 +60,18 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	val, err := getRedis(req.Host)
 
 	if err == nil {
-		stdout.Info("redirect", "status", http.StatusMovedPermanently, "host", req.Host, "target", val)
+		stdout.Info("redirect",
+			"status", http.StatusMovedPermanently,
+			"host", req.Host,
+			"target", val)
 		http.Redirect(w, req, val, http.StatusMovedPermanently)
 		return
 	}
 
 	if errors.Is(err, ErrNotFound) {
-		stdout.Info("not found", "status", http.StatusNotFound, "host", req.Host)
+		stdout.Info("not found",
+			"status", http.StatusNotFound,
+			"host", req.Host)
 		http.NotFound(w, req)
 		return
 	}
@@ -63,5 +82,10 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	http.HandleFunc("/", handleRequest)
-	http.ListenAndServe(":8090", nil)
+	http.ListenAndServe(
+		fmt.Sprintf(
+			"%v:%v",
+			os.Getenv("LISTEN_ADDR"),
+			getEnv("LISTEN_PORT", "8090")),
+		nil)
 }
