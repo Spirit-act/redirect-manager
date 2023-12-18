@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -84,8 +85,9 @@ func getRedis(host_header string) (string, error) {
 }
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
-	// get the value based on the request Host Header
-	val, err := getRedis(req.Host)
+
+	// get the value based on the request Host Header and the URL
+	val, err := getRedis(strings.TrimRight(fmt.Sprintf("%s%s", req.Host, req.URL), "/"))
 
 	if err == nil {
 		// Log a successfull request to stdout
