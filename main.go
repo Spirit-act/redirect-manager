@@ -46,18 +46,18 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 	val, err := getRedis(req.Host)
 
 	if err == nil {
-		stdout.Info("redirect", "status", "301", "host", req.Host, "target", val)
+		stdout.Info("redirect", "status", http.StatusMovedPermanently, "host", req.Host, "target", val)
 		http.Redirect(w, req, val, http.StatusMovedPermanently)
 		return
 	}
 
 	if errors.Is(err, ErrNotFound) {
-		stdout.Info("not found", "status", "404", "host", req.Host)
+		stdout.Info("not found", "status", http.StatusNotFound, "host", req.Host)
 		http.NotFound(w, req)
 		return
 	}
 
-	stderr.Error(err.Error(), "status", "500", "host", req.Host)
+	stderr.Error(err.Error(), "status", http.StatusInternalServerError, "host", req.Host)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
