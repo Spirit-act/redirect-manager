@@ -1,4 +1,4 @@
-module gitlab.com/Spiritact/redirects
+module github.com/Spirit-act/redirect-manager
 
 go 1.21.4
 
