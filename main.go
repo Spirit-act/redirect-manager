@@ -57,7 +57,7 @@ func getEnv(key string, fallback string) string {
 }
 
 // retrieve a value from redis
-func getRedis(search_string string) (string, error) {
+func getRedis(searchString string) (string, error) {
 	// connect to the readis server
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     getEnv("REDIS_HOST", "127.0.0.1:6379"),
@@ -67,7 +67,7 @@ func getRedis(search_string string) (string, error) {
 	})
 
 	// retrieve a value by key
-	val, err := rdb.Get(ctx, search_string).Result()
+	val, err := rdb.Get(ctx, searchString).Result()
 
 	if err == redis.Nil {
 		// if redis returns nil the Key was not found
