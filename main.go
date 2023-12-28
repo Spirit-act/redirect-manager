@@ -17,7 +17,8 @@ import (
 var ErrNotFound = errors.New(toString(http.StatusNotFound))
 
 // create an logging for default logging -> stdout
-var stdout = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+// var stdout = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+var stdout = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 // create logging for errors -> stderr
 var stderr = slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -85,16 +86,31 @@ func getRedis(searchString string) (string, error) {
 }
 
 func handleRequest(w http.ResponseWriter, req *http.Request) {
+	request_uri := req.URL.RequestURI()
+
+	if getEnv("PROXY_MODE", "false") == "true" {
+		// if proxy mode is enabled, override request_uri
+		request_uri = req.Header["X-Original-Uri"][0]
+	}
 
 	// get the value based on the request Host Header and the URL
-	val, err := getRedis(strings.TrimRight(fmt.Sprintf("%s%s", req.Host, req.URL), "/"))
+	request_string := strings.TrimRight(fmt.Sprintf("%s%s", req.Host, request_uri), "/")
+	val, err := getRedis(request_string)
 
 	if err == nil {
 		// Log a successfull request to stdout
 		stdout.Info("redirect",
 			"status", http.StatusMovedPermanently,
-			"host", req.Host,
+			"host", request_string,
 			"target", val)
+
+		if getEnv("PROXY_MODE", "false") == "true" {
+			// if proxymode is enabled, return 403 forbidden
+			// instead of 301 with the location header
+			http.Redirect(w, req, val, http.StatusForbidden)
+			return
+		}
+
 		// redirect with 301 Moved Permanently
 		http.Redirect(w, req, val, http.StatusMovedPermanently)
 		return
@@ -105,14 +121,32 @@ func handleRequest(w http.ResponseWriter, req *http.Request) {
 		// Log the Request and return 404
 		stdout.Info("not found",
 			"status", http.StatusNotFound,
-			"host", req.Host)
+			"host", request_string)
+
+
+		if getEnv("PROXY_MODE", "false") == "true" {
+			// if proxymode is enabled, return 200 OK
+			// instead of 404 so that the request is progressed normaly
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		// return 404 Not Found
 		http.NotFound(w, req)
 		return
 	}
 
 	// if everything else went wrong log an error to stderr
-	stderr.Error(err.Error(), "status", http.StatusInternalServerError, "host", req.Host)
+	stderr.Error(err.Error(), "status", http.StatusInternalServerError, "host", request_string)
+
+	if getEnv("PROXY_MODE", "false") == "true" {
+		// if proxymode is enabled, return 200 OK
+		// even if someting went wrong, so the normal
+		// application can still work
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// and return 500 Internal Server Error
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
