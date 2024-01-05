@@ -1,6 +1,7 @@
 name: Docker
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "master" ]
 
@@ -18,9 +19,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: create container
-        uses: mr-smithers-excellent/docker-build-push@v6.2
+        uses: mr-smithers-excellent/docker-build-push@v6
         with:
-          image: redirect-manager
+          image: rm
           tags: latest
           registry: ghcr.io
           dockerfile: Dockerfile
